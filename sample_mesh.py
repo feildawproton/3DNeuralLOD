@@ -4,6 +4,8 @@ from numba import njit, prange
 
 from compute_intersections import intersections_z
 
+#testing change
+
 def sample_nonparallel(stl_mesh, points, inside_mesh_results):
 	for ndx in range(points.shape[0]):
 		intersections = intersections_z(points[ndx], stl_mesh.vectors)
