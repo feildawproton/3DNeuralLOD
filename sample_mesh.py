@@ -1,20 +1,13 @@
 import numpy as np
 from stl import mesh
+import datetime
 
 from compute_intersections import intersections_z
-
-#testing change
 
 def sample_nonparallel(faces, points, inside_mesh_results):
 	for ndx in range(points.shape[0]):
 		intersections = intersections_z(points[ndx], faces)
 		result = intersections % 2
-		if result != 0:
-			inside_mesh_results[ndx] = 1.0
-			
-def sample(faces, points, inside_mesh_results):
-	for point in points:
-		
 
 def sample_mesh(stl_mesh, num_samples):
 	#create the sample coordinates
@@ -37,4 +30,7 @@ def sample_mesh(stl_mesh, num_samples):
 	points[:,2] = points[:,2] + zee_min
 	
 	inside_mesh_results = np.zeros(points.shape[0])
+	start_time = datetime.datetime.now()
 	sample_nonparallel(stl_mesh.vectors, points, inside_mesh_results)
+	end_time = datetime.datetime.now()
+	print(end_time - start_time)

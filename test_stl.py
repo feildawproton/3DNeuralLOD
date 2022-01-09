@@ -3,8 +3,6 @@ import numpy as np
 from stl import mesh
 from mpl_toolkits import mplot3d
 from matplotlib import pyplot
-#for performance testing
-import datetime
 
 figure = pyplot.figure()
 axes = mplot3d.Axes3D(figure)
