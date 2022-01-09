@@ -2,7 +2,7 @@
 Testing Neural LOD in 3D
 
 Requirements
-- Numba and Numba CUDA for mesh sampling
+- Numba CUDA for mesh sampling in parallel
 - Numpy-stl for meshes
 
 Attribution:
