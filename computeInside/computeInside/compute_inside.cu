@@ -1,5 +1,4 @@
-﻿//detp
-//I implemented this in numba cuda as well
+﻿//I implemented this in numba cuda as well
 //that worked and parallelized checking intersections for a given points
 //however I also wanted to parallelize over the points
 //So, parallel foreach point which parallelize foreach triangle
@@ -11,6 +10,8 @@
 
 #include <stdio.h>
 
+#include <omp.h>
+
 typedef struct vec3
 {
     float x;
@@ -18,7 +19,7 @@ typedef struct vec3
     float z;
 };
 
-typedef struct traingle
+typedef struct triangle
 {
     vec3 a;
     vec3 b;
@@ -66,14 +67,14 @@ float volume(vec3 a, vec3 b, vec3 c, vec3 d)
 //step 2: determine if the point, compressed along the line segment, is inside the triangle (also projected into 2d along the line segment)
 //in this case the line segment will be along zee only.  we have a point and then just project to the zee limit
 //the results are floats.  could I use a smaller datatype?
-__global__ void intersections_z_kernel(const vec3 point, const float z_limt, const traingle* faces, const int n_faces, float* results)
+__global__ void intersections_z_kernel(const vec3 point, const float z_limt, const triangle* faces, const int n_faces, float* results)
 {
     //need to calculate the correct global index
     int ndx = blockIdx.x * blockDim.x + threadIdx.x;
     //don't want to go out of memory
     if (ndx < n_faces)
     {
-        traingle face = faces[ndx];
+        triangle face = faces[ndx];
         
         // -- STEP 1 --
         //determine if the line segment crossed the plane of the triangle
@@ -140,14 +141,14 @@ __global__ void intersections_z_kernel(const vec3 point, const float z_limt, con
 //This alternate implementation is slower than the one above
 //I keep it for reference though because it doesn't require the 2D projection
 //in my previous testing (in python numba cuda) these yield the same results.  Perhaps need to test again.
-__global__ void intersections_z_kernel_alt(const vec3 point, const float z_limt, const traingle* faces, const int n_faces, float* results)
+__global__ void intersections_z_kernel_alt(const vec3 point, const float z_limt, const triangle* faces, const int n_faces, float* results)
 {
     //need to calculate the correct global index
     int ndx = blockIdx.x * blockDim.x + threadIdx.x;
     //don't want to go out of memory
     if (ndx < n_faces)
     {
-        traingle face = faces[ndx];
+        triangle face = faces[ndx];
 
         // -- STEP 1 --
         //determine if the line segment crossed the plane of the triangle
@@ -184,6 +185,23 @@ __global__ void intersections_z_kernel_alt(const vec3 point, const float z_limt,
     }
 }
 
+/*
+float intersections_z(const vec3 point, const triangle* faces, const int n_faces)
+{
+
+}
+*/
+
+void test_parallel()
+{
+    printf("Using %d threads\n", omp_get_num_threads());
+    #pragma omp parallel
+    {
+        int thread_id = omp_get_thread_num();
+        printf("hello from thread: %d\n", thread_id);
+    }
+}
+
 cudaError_t addWithCuda(int* c, const int* a, const int* b, unsigned int size);
 
 __global__ void addKernel(int *c, const int *a, const int *b)
@@ -216,6 +234,9 @@ int main()
         fprintf(stderr, "cudaDeviceReset failed!");
         return 1;
     }
+
+    omp_set_num_threads(8);
+    test_parallel();
 
     return 0;
 }
