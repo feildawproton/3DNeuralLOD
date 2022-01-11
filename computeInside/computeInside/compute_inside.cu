@@ -10,13 +10,15 @@
 
 #include <stdio.h>
 
-#include <omp.h>
+#include <omp.h>    //for parallel
+#include <stdlib.h> //for rand
+
+const unsigned THREADS_PER_BLOCKS = 64;
+const unsigned CPU_THREADS = 8;
 
 typedef struct vec3
 {
-    float x;
-    float y;
-    float z;
+    float x, y, z;
 };
 
 typedef struct triangle
@@ -79,16 +81,16 @@ __global__ void intersections_z_kernel(const vec3 point, const float z_limt, con
         // -- STEP 1 --
         //determine if the line segment crossed the plane of the triangle
         //got this from stack overflow: https://stackoverflow.com/questions/53962225/how-to-know-if-a-line-segment-intersects-a-triangle-in-3d-space
-        vec3 a = face.a;
-        vec3 b = face.b;
-        vec3 c = face.c;
-        vec3 d = point;
-        vec3 e = {};
-        e.x = point.x;
-        e.y = point.y;
-        e.z = z_limt;
-        float Td = volume(a, b, c, d);
-        float Te = volume(a, b, c, e);
+        vec3 a      = face.a;
+        vec3 b      = face.b;
+        vec3 c      = face.c;
+        vec3 d      = point;
+        vec3 e      = {};
+        e.x         = point.x;
+        e.y         = point.y;
+        e.z         = z_limt;
+        float Td    = volume(a, b, c, d);
+        float Te    = volume(a, b, c, e);
         
         //if Td and Te have the same sign then the points lie on one side of the plane
         //if they have opposite signes then it crosses the plane
@@ -104,18 +106,18 @@ __global__ void intersections_z_kernel(const vec3 point, const float z_limt, con
             //the method I use here is from Wolfram Mathworld: https://mathworld.wolfram.com/TriangleInterior.html 
             //if we define one of the corners of the triangle as v0 = v_0
             //and define the vectors that point to the other corners as v1 = v_1 - v_0 and v2 = v_2 - v_0
-            vec2 v = {};
-            v.x = point.x;
-            v.y = point.y;
+            vec2 v  = {};
+            v.x     = point.x;
+            v.y     = point.y;
             vec2 v0 = {};
-            v0.x = a.x;
-            v0.y = a.y;
+            v0.x    = a.x;
+            v0.y    = a.y;
             vec2 v1 = {};
-            v1.x = b.x - v0.x;
-            v1.y = b.y - v0.y;
+            v1.x    = b.x - v0.x;
+            v1.y    = b.y - v0.y;
             vec2 v2 = {};
-            v2.x = c.x - v0.x;
-            v2.y = c.y - v0.y;
+            v2.x    = c.x - v0.x;
+            v2.y    = c.y - v0.y;
             //then we can describe the point v = v0 + a*v1 + b*v2
             //the a = (det(v*v2) - det(v0*v2)) / det(v1*v2) and b = - (det(v*v1) - det(v0*v1)) / det(v1*v2)
             //where det(u*v) = uXv = u_x * v_y - u_y * v_x
@@ -123,13 +125,13 @@ __global__ void intersections_z_kernel(const vec3 point, const float z_limt, con
             float det_v1_v2 = v1.x * v2.y - v1.y * v2.x;
             if (det_v1_v2 != 0.0)
             {
-                float det_v_v2 = v.x * v2.y - v.y * v2.x;
+                float det_v_v2  = v.x * v2.y - v.y * v2.x;
                 float det_v0_v2 = v0.x * v2.y - v0.y * v2.x;
-                float a = (det_v_v2 - det_v0_v2) / det_v1_v2;
+                float a         = (det_v_v2 - det_v0_v2) / det_v1_v2;
 
-                float det_v_v1 = v.x * v1.y - v.y * v1.x;
+                float det_v_v1  = v.x * v1.y - v.y * v1.x;
                 float det_v0_v1 = v0.x * v1.y - v0.y * v1.x;
-                float b = - (det_v_v1 - det_v0_v1) / det_v1_v2;
+                float b         = - (det_v_v1 - det_v0_v1) / det_v1_v2;
 
                 if (a > 0.0 && b > 0.0 && a + b < 1.0)
                     results[ndx] = 1.0;
@@ -153,16 +155,16 @@ __global__ void intersections_z_kernel_alt(const vec3 point, const float z_limt,
         // -- STEP 1 --
         //determine if the line segment crossed the plane of the triangle
         //got this from stack overflow: https://stackoverflow.com/questions/53962225/how-to-know-if-a-line-segment-intersects-a-triangle-in-3d-space
-        vec3 a = face.a;
-        vec3 b = face.b;
-        vec3 c = face.c;
-        vec3 d = point;
-        vec3 e = {};
-        e.x = point.x;
-        e.y = point.y;
-        e.z = z_limt;
-        float Td = volume(a, b, c, d);
-        float Te = volume(a, b, c, e);
+        vec3 a      = face.a;
+        vec3 b      = face.b;
+        vec3 c      = face.c;
+        vec3 d      = point;
+        vec3 e      = {};
+        e.x         = point.x;
+        e.y         = point.y;
+        e.z         = z_limt;
+        float Td    = volume(a, b, c, d);
+        float Te    = volume(a, b, c, e);
 
         //if Td and Te have the same sign then the points lie on one side of the plane
         //if they have opposite signes then it crosses the plane
@@ -192,14 +194,64 @@ float intersections_z(const vec3 point, const triangle* faces, const int n_faces
 }
 */
 
+//inputs should be pointers to cpu memory
+float inside_z(const vec3* p_points, const unsigned n_points, const triangle* p_faces, const unsigned n_faces)
+{
+    //select gpu
+    cudaError_t cudaStatus = cudaSetDevice(0);
+    if (cudaStatus != cudaSuccess)
+        fprintf(stderr, "cudaSetDevice failed.");
+    //allocate memory
+    vec3* p_points_gpu;
+    triangle* p_faces_gpu;
+    float* p_intersections;
+
+    cudaStatus = cudaMalloc((void**)&p_points_gpu, sizeof(vec3) * n_points);
+    if (cudaStatus != cudaSuccess) 
+        fprintf(stderr, "cudaMalloc failed!");
+
+    cudaStatus = cudaMalloc((void**)&p_faces_gpu, sizeof(triangle) * n_faces);
+    if (cudaStatus != cudaSuccess)
+        fprintf(stderr, "cudaMalloc failed!");
+
+    cudaStatus = cudaMalloc((void**)&p_intersections, sizeof(float) * n_points);
+    if (cudaStatus != cudaSuccess)
+        fprintf(stderr, "cudaMalloc failed!");
+
+    cudaFree(p_intersections);
+    cudaFree(p_faces_gpu);
+    cudaFree(p_points_gpu);
+
+    return 0.0;
+}
+
 void test_parallel()
 {
-    printf("Using %d threads\n", omp_get_num_threads());
+    omp_set_num_threads(CPU_THREADS);
+    
     #pragma omp parallel
     {
         int thread_id = omp_get_thread_num();
-        printf("hello from thread: %d\n", thread_id);
+        printf("hello from thread: %d of %d\n", thread_id, omp_get_num_threads());
     }
+}
+
+vec3* alloc_rand_points(unsigned num_points)
+{
+    vec3* p_points;
+    p_points = (vec3*)malloc(sizeof(vec3) * num_points);
+
+    for (unsigned i = 0; i < num_points; i++)
+    {
+        p_points[i].x     = 1.0;
+        p_points[i].y     = 2.0;
+        p_points[i].z     = 3.0;
+        vec3 point = { 1.0, 2.0, 3.0 };
+
+        printf("%f %f $f\n", (point.x, point.y, point.z));
+        //point.z     = (float)rand() / float(RAND_MAX);
+    }
+    return p_points;
 }
 
 cudaError_t addWithCuda(int* c, const int* a, const int* b, unsigned int size);
@@ -235,9 +287,16 @@ int main()
         return 1;
     }
 
-    omp_set_num_threads(8);
+    
     test_parallel();
+    vec3* p_points = alloc_rand_points(100);
+    for (unsigned i = 0; i < 100; i++)
+    {
+        vec3 this_point = p_points[i];
+        printf("%d, %d, %d\n", (this_point.x, this_point.y, this_point.z));
+    }
 
+    free(p_points);
     return 0;
 }
 
