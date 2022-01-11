@@ -13,10 +13,10 @@ Requirements
   - in vs19 this is done by going to project Properties -> CUDA C/C++ -> Host -> Additional Compiler Options
   - add /openmp in the test entry box
 
-Sampling Blender's Suzanne:
+Sampling Blender's Suzanne (samples outside of mesh are transparent):
 ![suzanne_sampled](https://user-images.githubusercontent.com/56926839/149004660-7ae0fe37-4093-47f8-8910-81b8e30183e8.png)
 
-Sampling MakeHuman's default male:
+Sampling MakeHuman's default male (samples outside of mesh are transparent):
 ![makehumanmale_sample_100000](https://user-images.githubusercontent.com/56926839/149004827-0be5bedf-4e5e-4fdc-a978-a866419644e0.png)
 
 Attribution:
