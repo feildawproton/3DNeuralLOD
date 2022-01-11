@@ -144,7 +144,7 @@ def intersections_z(point, faces):
 	#these_faces = np.copy(faces)
 	results = np.zeros(faces.shape[0], dtype = np.float32)
 	blocks_per_grid = math.ceil(faces.shape[0] / THREADS_PER_BLOCK)
-	z_limt = np.amin(faces[:,2])
+	z_limt = np.amin(faces[:,:,2])
 
 	intersections_z_kernel[blocks_per_grid, THREADS_PER_BLOCK](this_point, z_limt, faces, results)
 	#print(results)
