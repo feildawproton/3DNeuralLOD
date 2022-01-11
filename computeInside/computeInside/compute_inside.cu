@@ -128,10 +128,9 @@ __global__ void intersections_z_kernel(const vec3 point, const float z_limt, con
                 float det_v_v1 = v.x * v1.y - v.y * v1.x;
                 float det_v0_v1 = v0.x * v1.y - v0.y * v1.x;
                 float b = - (det_v_v1 - det_v0_v1) / det_v1_v2;
+
                 if (a > 0.0 && b > 0.0 && a + b < 1.0)
-                {
                     results[ndx] = 1.0;
-                }
             }
         }
     }
@@ -171,6 +170,15 @@ __global__ void intersections_z_kernel_alt(const vec3 point, const float z_limt,
         {
             // -- STEP 2 --
             //so I continue on with the method described in the stack overflow help above
+            float T_abde = volume(a, b, d, e);
+            float T_bcde = volume(b, c, d, e);
+            float T_cade = volume(c, a, d, e);
+
+            //if these have the same sine then the segment does intersect the triangle
+            if (T_abde >= 0.0 && T_bcde >= 0.0 && T_cade >= 0.0)
+                results[ndx] = 1.0;
+            else if (T_abde < 0.0 && T_bcde < 0.0 && T_cade < 0.0)
+                results[ndx] = 1.0;
         }
     }
 }
