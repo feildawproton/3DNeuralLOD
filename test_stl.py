@@ -24,16 +24,9 @@ if __name__ == "__main__":
 	plt.show()
 	'''
 
-	#from compute_intersections import intersections_z, intersections_z_alt, intersections_z_nonparallel
-	
-	print(the_mesh.vectors.shape)
-	
-	#points, labels = sample_mesh(the_mesh, 1000)
-	
-	points, labels = sample_mesh_selective(the_mesh)
-	
-	print(labels.shape)
-	
+	points, labels = sample_mesh(the_mesh, 10000)
+	#points, labels = sample_mesh_selective(the_mesh)
+
 	#transparent colormap from https://riptutorial.com/matplotlib/example/11646/using-custom-colormaps
 	cm.register_cmap(name="purple_transparency",
                  data={'red':   [(0.,0.4,0.4),
@@ -48,6 +41,6 @@ if __name__ == "__main__":
                        'alpha': [(0.,0,0),
                                  (1,1,1)]})
 
-	#axes.scatter3D(points[:,0], points[:,1], points[:,2], c=labels, cmap = "purple_transparency")
-	axes.scatter3D(points[:,0], points[:,1], points[:,2], c=labels)
+	axes.scatter3D(points[:,0], points[:,1], points[:,2], c=labels, cmap = "purple_transparency")
+	#axes.scatter3D(points[:,0], points[:,1], points[:,2], c=labels)
 	plt.show()
