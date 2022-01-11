@@ -4,8 +4,9 @@ Testing Neural LOD in 3D
 Requirements
 - Numba CUDA for mesh sampling in parallel
 - Numpy-stl for meshes
+![suzanne_sampled](https://user-images.githubusercontent.com/56926839/149004660-7ae0fe37-4093-47f8-8910-81b8e30183e8.png)
 
-Mesh sampling
+**Mesh sampling**
 - Mesh sampling is done with two forms of parallelism
 - CPU threading, with openmp, over the samples
 - and GPU kernels for each sample to parallelize testing the mesh for intersections
