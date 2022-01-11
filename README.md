@@ -7,8 +7,8 @@ Requirements
 
 **Mesh sampling**
 - Mesh sampling is done with two forms of parallelism
-- CPU threading, with openmp, over the samples
-- and GPU kernels for each sample to parallelize testing the mesh for intersections
+- CPU threading, with openmp, over the sample points
+- and GPU kernels for each sample point to parallelize testing the mesh for line segment intersections
 - Enabling this in VS requires VS passing the /openmp argument to nvcc
   - in vs19 this is done by going to project Properties -> CUDA C/C++ -> Host -> Additional Compiler Options
   - add /openmp in the test entry box
