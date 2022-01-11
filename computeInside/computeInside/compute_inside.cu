@@ -1,4 +1,5 @@
-﻿//I implemented this in numba cuda as well
+﻿//detp
+//I implemented this in numba cuda as well
 //that worked and parallelized checking intersections for a given points
 //however I also wanted to parallelize over the points
 //So, parallel foreach point which parallelize foreach triangle
