@@ -11,7 +11,7 @@ Requirements
 - and GPU kernels for each sample point to parallelize testing the mesh for line segment intersections
 - Enabling this in VS requires VS passing the /openmp argument to nvcc
   - in vs19 this is done by going to project Properties -> CUDA C/C++ -> Host -> Additional Compiler Options
-  - add /openmp in the test entry box
+  - add /openmp in the text entry box
 
 Sampling blender.org's Suzanne (samples outside of mesh are transparent):
 ![suzanne_sampled](https://user-images.githubusercontent.com/56926839/149004660-7ae0fe37-4093-47f8-8910-81b8e30183e8.png)
