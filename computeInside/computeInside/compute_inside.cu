@@ -13,8 +13,9 @@
 #include <omp.h>    //for parallel
 #include <stdlib.h> //for rand
 #include <math.h>   //for ceil()
+#include <time.h>   //for perf testing
 
-const unsigned THREADS_PER_BLOCK = 64;
+const unsigned THREADS_PER_BLOCK = 256;
 const unsigned CPU_THREADS = 8;
 
 typedef struct vec3
@@ -70,14 +71,14 @@ float volume(vec3 a, vec3 b, vec3 c, vec3 d)
 //step 2: determine if the point, compressed along the line segment, is inside the triangle (also projected into 2d along the line segment)
 //in this case the line segment will be along zee only.  we have a point and then just project to the zee limit
 //the results are floats. 1.0 the face was crossed and 0.0 the face wasn't crossed.  could I use a smaller datatype?
-__global__ void intersections_z_kernel(const vec3 point, const float z_limt, const triangle* faces, const int n_faces, float* results)
+__global__ void intersections_z_kernel(const vec3 point, const float z_limt, const triangle* faces, const int n_faces, int* results)
 {
     //need to calculate the correct global index
     int ndx = blockIdx.x * blockDim.x + threadIdx.x;
     //don't want to go out of memory
     if (ndx < n_faces)
     {
-        results[ndx] = 0.0; //set to zero first
+        results[ndx] = 0; //set to zero first
         triangle face = faces[ndx];
         
         // -- STEP 1 --
@@ -136,25 +137,25 @@ __global__ void intersections_z_kernel(const vec3 point, const float z_limt, con
                 float b         = - (det_v_v1 - det_v0_v1) / det_v1_v2;
 
                 if (a > 0.0 && b > 0.0 && a + b < 1.0)
-                    results[ndx] = 1.0;
+                    results[ndx] = 1;
             }
         }
     }
 }
 
-//This alternate implementation is slower than the one above
+//This alternate implementation is slower than the one above (on my computer at least)
 //I keep it for reference though because it doesn't require the 2D projection
 //in my previous testing (in python numba cuda) these yield the same results.  Perhaps need to test again.
 //the results are floats. 1.0 the face was crossed and 0.0 the face wasn't crossed.  could I use a smaller datatype?
 //results should be intitialized to all zeros
-__global__ void intersections_z_kernel_alt(const vec3 point, const float z_limt, const triangle* faces, const int n_faces, float* results)
+__global__ void intersections_z_kernel_alt(const vec3 point, const float z_limt, const triangle* faces, const unsigned n_faces, int* results)
 {
     //need to calculate the correct global index
     int ndx = blockIdx.x * blockDim.x + threadIdx.x;
     //don't want to go out of memory
     if (ndx < n_faces)
     {
-        results[ndx] = 0.0; //set to zero first
+        results[ndx] = 0; //set to zero first
         triangle face = faces[ndx];
 
         // -- STEP 1 --
@@ -185,81 +186,86 @@ __global__ void intersections_z_kernel_alt(const vec3 point, const float z_limt,
 
             //if these have the same sine then the segment does intersect the triangle
             if (T_abde >= 0.0 && T_bcde >= 0.0 && T_cade >= 0.0)
-                results[ndx] = 1.0;
+                results[ndx] = 1;
             else if (T_abde < 0.0 && T_bcde < 0.0 && T_cade < 0.0)
-                results[ndx] = 1.0;
+                results[ndx] = 1;
         }
     }
 }
 
-/*
-float count_intersections(float* intersections)
+//counts the number of intersection and returns 1 if odd and 0 if even
+//1 if inside and 0 if outside of mesh
+int count_inside(const int* intersections, const unsigned n_intersections)
 {
-
+    int sum = 0;
+    for (unsigned i = 0; i < n_intersections; i++)
+        sum += intersections[i];
+    return (sum % 2);
 }
-*/
 
+// -- USE THIS FUNCITON -- 
 //inputs should be pointers to cpu memory
 //find if the points are inside the mesh (this assumes the mesh doesn't have holes)
-float inside_z(const vec3* p_points, const unsigned n_points, const triangle* p_faces, const unsigned n_faces)
+int* create_inside_z_results(const vec3* p_points, const unsigned n_points, const triangle* p_faces, const unsigned n_faces)
 {
     //select gpu
     cudaError_t cudaStatus = cudaSetDevice(0);
     if (cudaStatus != cudaSuccess)
         fprintf(stderr, "cudaSetDevice failed.");
 
-    printf("allocating gpu memory and copying from host-to-device\n");
+   
     // -- allocate memory --
+    int* p_results = (int*)malloc(sizeof(int) * n_points);
+
+    printf("allocating gpu memory and copying from host-to-device\n");
     triangle* p_faces_gpu;
-
     cudaStatus = cudaMalloc((void**)&p_faces_gpu, sizeof(triangle) * n_faces);
-    if (cudaStatus != cudaSuccess)
-        fprintf(stderr, "cudaMalloc failed!\n");
-
-    // -- copy memory from host to device --
     cudaStatus = cudaMemcpy(p_faces_gpu, p_faces, sizeof(triangle) * n_faces, cudaMemcpyHostToDevice);
-    if (cudaStatus != cudaSuccess)
-        fprintf(stderr, "memory copy host-to-device failed!\n");
 
     unsigned BLOCKS_PER_GRID = ceil((float)n_faces / (float)THREADS_PER_BLOCK); //caste to float before division to get decimal
+
     printf("each thread will launch %i blocks per grid with %i threads per block\n", BLOCKS_PER_GRID, THREADS_PER_BLOCK);
     //divide the points accross the threads
+    
+    //the multiparallel version is faster than just the face parallel (single thread) one is (by about 2x)
+    clock_t start = clock();
     #pragma omp parallel
     {
         printf("launching cpu thread %i of %i\n", omp_get_thread_num(), omp_get_num_threads());
         #pragma omp for
-        for(int i = 0; i < n_points; i++)
+        for (int i = 0; i < n_points; i++)
         {
-            float* p_intersect_faces;
-            cudaStatus = cudaMalloc((void**)&p_intersect_faces, sizeof(float) * n_faces);
-            if (cudaStatus != cudaSuccess)
-                fprintf(stderr, "cudaMalloc failed!\n");
-            intersections_z_kernel << <BLOCKS_PER_GRID, THREADS_PER_BLOCK >> > (p_points[i], 1.0, p_faces_gpu, n_faces, p_intersect_faces);
+            int* p_intersect_gpu;
+            cudaStatus = cudaMalloc((void**)&p_intersect_gpu, sizeof(int) * n_faces);
+
+            //from this we get what faces were intersected
+            intersections_z_kernel <<< BLOCKS_PER_GRID, THREADS_PER_BLOCK >>> (p_points[i], 1.0, p_faces_gpu, n_faces, p_intersect_gpu);
+
+            //copy memory back to cpu (could do reduce sum on gpu but I don't)
+            int* p_intersect = (int*)malloc(sizeof(int) * n_faces);
+            cudaStatus = cudaMemcpy(p_intersect, p_intersect_gpu, sizeof(int) * n_faces, cudaMemcpyDeviceToHost);
+
+            //now we need to sum up the face intersections to get how many faces a givin point intersects
+            int inside = count_inside(p_intersect, n_faces);
+            p_results[i] = inside;
 
             //perhaps should free in a separate loop after we are done?
-            cudaFree(p_intersect_faces);
+            free(p_intersect);
+
+            cudaFree(p_intersect_gpu);
         }
     }
-
-    cudaFree(p_faces_gpu);
-
-    return 0.0;
-}
-
-/*
-void test_parallel()
-{
-    omp_set_num_threads(CPU_THREADS);
+    cudaDeviceSynchronize();
+    clock_t delta = clock() - start;
+    float time = delta / CLOCKS_PER_SEC;
+    printf("multiparallel (cpu and gpu) mesh sampling execution time: %f\n", time);
     
-    #pragma omp parallel
-    {
-        int thread_id = omp_get_thread_num();
-        printf("hello from thread: %d of %d\n", thread_id, omp_get_num_threads());
-    }
+    cudaFree(p_faces_gpu);
+    
+    return p_results;
 }
-*/
 
-vec3* alloc_rand_points(unsigned num_points)
+vec3* create_rand_points(unsigned num_points)
 {
     vec3* p_points;
     p_points = (vec3*)malloc(sizeof(vec3) * num_points);
@@ -273,7 +279,7 @@ vec3* alloc_rand_points(unsigned num_points)
     return p_points;
 }
 
-triangle* alloc_rand_faces(unsigned num_faces)
+triangle* create_rand_faces(unsigned num_faces)
 {
     triangle* p_faces;
     p_faces = (triangle*)malloc(sizeof(triangle) * num_faces);
@@ -303,10 +309,12 @@ int main()
     int c[arraySize] = { 0 };
 
     //test_parallel();
-    unsigned n_points = 100;
-    unsigned n_faces = 100;
-    vec3* p_points = alloc_rand_points(n_points);
-    triangle* p_faces = alloc_rand_faces(n_faces);
+    unsigned n_points = 100000;
+    unsigned n_faces = 100000;
+
+    vec3* p_points = create_rand_points(n_points);
+    triangle* p_faces = create_rand_faces(n_faces);
+    
     /*
     for (unsigned i = 0; i < 100; i++)
     {
@@ -315,10 +323,20 @@ int main()
         printf("%f, %f, %f\n", p_faces[i].c.x, p_faces[i].c.y, p_faces[i].c.z);
     }
     */
-    float result = inside_z(p_points, n_points, p_faces, n_faces);
+    int* p_results = create_inside_z_results(p_points, n_points, p_faces, n_faces);
 
+    /*
+    for (unsigned i = 0; i < n_points; i++)
+    {
+        printf("%i\n", p_results[i]);
+    }
+    */
+
+    free(p_results);
     free(p_faces);
     free(p_points);
+
+
     return 0;
 }
 
