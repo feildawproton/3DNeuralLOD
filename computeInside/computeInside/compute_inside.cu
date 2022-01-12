@@ -12,8 +12,9 @@
 
 #include <omp.h>    //for parallel
 #include <stdlib.h> //for rand
+#include <math.h>   //for ceil()
 
-const unsigned THREADS_PER_BLOCKS = 64;
+const unsigned THREADS_PER_BLOCK = 64;
 const unsigned CPU_THREADS = 8;
 
 typedef struct vec3
@@ -68,7 +69,7 @@ float volume(vec3 a, vec3 b, vec3 c, vec3 d)
 //step 1: determine if the line segment cross the plane the triangle is in
 //step 2: determine if the point, compressed along the line segment, is inside the triangle (also projected into 2d along the line segment)
 //in this case the line segment will be along zee only.  we have a point and then just project to the zee limit
-//the results are floats.  could I use a smaller datatype?
+//the results are floats. 1.0 the face was crossed and 0.0 the face wasn't crossed.  could I use a smaller datatype?
 __global__ void intersections_z_kernel(const vec3 point, const float z_limt, const triangle* faces, const int n_faces, float* results)
 {
     //need to calculate the correct global index
@@ -76,6 +77,7 @@ __global__ void intersections_z_kernel(const vec3 point, const float z_limt, con
     //don't want to go out of memory
     if (ndx < n_faces)
     {
+        results[ndx] = 0.0; //set to zero first
         triangle face = faces[ndx];
         
         // -- STEP 1 --
@@ -143,6 +145,8 @@ __global__ void intersections_z_kernel(const vec3 point, const float z_limt, con
 //This alternate implementation is slower than the one above
 //I keep it for reference though because it doesn't require the 2D projection
 //in my previous testing (in python numba cuda) these yield the same results.  Perhaps need to test again.
+//the results are floats. 1.0 the face was crossed and 0.0 the face wasn't crossed.  could I use a smaller datatype?
+//results should be intitialized to all zeros
 __global__ void intersections_z_kernel_alt(const vec3 point, const float z_limt, const triangle* faces, const int n_faces, float* results)
 {
     //need to calculate the correct global index
@@ -150,6 +154,7 @@ __global__ void intersections_z_kernel_alt(const vec3 point, const float z_limt,
     //don't want to go out of memory
     if (ndx < n_faces)
     {
+        results[ndx] = 0.0; //set to zero first
         triangle face = faces[ndx];
 
         // -- STEP 1 --
@@ -188,43 +193,60 @@ __global__ void intersections_z_kernel_alt(const vec3 point, const float z_limt,
 }
 
 /*
-float intersections_z(const vec3 point, const triangle* faces, const int n_faces)
+float count_intersections(float* intersections)
 {
 
 }
 */
 
 //inputs should be pointers to cpu memory
+//find if the points are inside the mesh (this assumes the mesh doesn't have holes)
 float inside_z(const vec3* p_points, const unsigned n_points, const triangle* p_faces, const unsigned n_faces)
 {
     //select gpu
     cudaError_t cudaStatus = cudaSetDevice(0);
     if (cudaStatus != cudaSuccess)
         fprintf(stderr, "cudaSetDevice failed.");
-    //allocate memory
-    vec3* p_points_gpu;
-    triangle* p_faces_gpu;
-    float* p_intersections;
 
-    cudaStatus = cudaMalloc((void**)&p_points_gpu, sizeof(vec3) * n_points);
-    if (cudaStatus != cudaSuccess) 
-        fprintf(stderr, "cudaMalloc failed!");
+    printf("allocating gpu memory and copying from host-to-device\n");
+    // -- allocate memory --
+    triangle* p_faces_gpu;
 
     cudaStatus = cudaMalloc((void**)&p_faces_gpu, sizeof(triangle) * n_faces);
     if (cudaStatus != cudaSuccess)
-        fprintf(stderr, "cudaMalloc failed!");
+        fprintf(stderr, "cudaMalloc failed!\n");
 
-    cudaStatus = cudaMalloc((void**)&p_intersections, sizeof(float) * n_points);
+    // -- copy memory from host to device --
+    cudaStatus = cudaMemcpy(p_faces_gpu, p_faces, sizeof(triangle) * n_faces, cudaMemcpyHostToDevice);
     if (cudaStatus != cudaSuccess)
-        fprintf(stderr, "cudaMalloc failed!");
+        fprintf(stderr, "memory copy host-to-device failed!\n");
 
-    cudaFree(p_intersections);
+    unsigned BLOCKS_PER_GRID = ceil((float)n_faces / (float)THREADS_PER_BLOCK); //caste to float before division to get decimal
+    printf("each thread will launch %i blocks per grid with %i threads per block\n", BLOCKS_PER_GRID, THREADS_PER_BLOCK);
+    //divide the points accross the threads
+    #pragma omp parallel
+    {
+        printf("launching cpu thread %i of %i\n", omp_get_thread_num(), omp_get_num_threads());
+        #pragma omp for
+        for(int i = 0; i < n_points; i++)
+        {
+            float* p_intersect_faces;
+            cudaStatus = cudaMalloc((void**)&p_intersect_faces, sizeof(float) * n_faces);
+            if (cudaStatus != cudaSuccess)
+                fprintf(stderr, "cudaMalloc failed!\n");
+            intersections_z_kernel << <BLOCKS_PER_GRID, THREADS_PER_BLOCK >> > (p_points[i], 1.0, p_faces_gpu, n_faces, p_intersect_faces);
+
+            //perhaps should free in a separate loop after we are done?
+            cudaFree(p_intersect_faces);
+        }
+    }
+
     cudaFree(p_faces_gpu);
-    cudaFree(p_points_gpu);
 
     return 0.0;
 }
 
+/*
 void test_parallel()
 {
     omp_set_num_threads(CPU_THREADS);
@@ -235,6 +257,7 @@ void test_parallel()
         printf("hello from thread: %d of %d\n", thread_id, omp_get_num_threads());
     }
 }
+*/
 
 vec3* alloc_rand_points(unsigned num_points)
 {
@@ -243,23 +266,33 @@ vec3* alloc_rand_points(unsigned num_points)
 
     for (unsigned i = 0; i < num_points; i++)
     {
-        p_points[i].x     = 1.0;
-        p_points[i].y     = 2.0;
-        p_points[i].z     = 3.0;
-        vec3 point = { 1.0, 2.0, 3.0 };
-
-        printf("%f %f $f\n", (point.x, point.y, point.z));
-        //point.z     = (float)rand() / float(RAND_MAX);
+        p_points[i].x     = float(rand()) / (float)RAND_MAX;
+        p_points[i].y     = float(rand()) / (float)RAND_MAX;
+        p_points[i].z     = float(rand()) / (float)RAND_MAX;
     }
     return p_points;
 }
 
-cudaError_t addWithCuda(int* c, const int* a, const int* b, unsigned int size);
-
-__global__ void addKernel(int *c, const int *a, const int *b)
+triangle* alloc_rand_faces(unsigned num_faces)
 {
-    int i = threadIdx.x;
-    c[i] = a[i] + b[i];
+    triangle* p_faces;
+    p_faces = (triangle*)malloc(sizeof(triangle) * num_faces);
+
+    for (unsigned i = 0; i < num_faces; i++)
+    {
+        p_faces[i].a.x = float(rand()) / (float)RAND_MAX;
+        p_faces[i].a.y = float(rand()) / (float)RAND_MAX;
+        p_faces[i].a.z = float(rand()) / (float)RAND_MAX;
+
+        p_faces[i].b.x = float(rand()) / (float)RAND_MAX;
+        p_faces[i].b.y = float(rand()) / (float)RAND_MAX;
+        p_faces[i].b.z = float(rand()) / (float)RAND_MAX;
+
+        p_faces[i].c.x = float(rand()) / (float)RAND_MAX;
+        p_faces[i].c.y = float(rand()) / (float)RAND_MAX;
+        p_faces[i].c.z = float(rand()) / (float)RAND_MAX;
+    }
+    return p_faces;
 }
 
 int main()
@@ -269,113 +302,23 @@ int main()
     const int b[arraySize] = { 10, 20, 30, 40, 50 };
     int c[arraySize] = { 0 };
 
-    // Add vectors in parallel.
-    cudaError_t cudaStatus = addWithCuda(c, a, b, arraySize);
-    if (cudaStatus != cudaSuccess) {
-        fprintf(stderr, "addWithCuda failed!");
-        return 1;
-    }
-
-    printf("{1,2,3,4,5} + {10,20,30,40,50} = {%d,%d,%d,%d,%d}\n",
-        c[0], c[1], c[2], c[3], c[4]);
-
-    // cudaDeviceReset must be called before exiting in order for profiling and
-    // tracing tools such as Nsight and Visual Profiler to show complete traces.
-    cudaStatus = cudaDeviceReset();
-    if (cudaStatus != cudaSuccess) {
-        fprintf(stderr, "cudaDeviceReset failed!");
-        return 1;
-    }
-
-    
-    test_parallel();
-    vec3* p_points = alloc_rand_points(100);
+    //test_parallel();
+    unsigned n_points = 100;
+    unsigned n_faces = 100;
+    vec3* p_points = alloc_rand_points(n_points);
+    triangle* p_faces = alloc_rand_faces(n_faces);
+    /*
     for (unsigned i = 0; i < 100; i++)
     {
-        vec3 this_point = p_points[i];
-        printf("%d, %d, %d\n", (this_point.x, this_point.y, this_point.z));
+        printf("%f, %f, %f\n", p_faces[i].a.x, p_faces[i].a.y, p_faces[i].a.z);
+        printf("%f, %f, %f\n", p_faces[i].b.x, p_faces[i].b.y, p_faces[i].b.z);
+        printf("%f, %f, %f\n", p_faces[i].c.x, p_faces[i].c.y, p_faces[i].c.z);
     }
+    */
+    float result = inside_z(p_points, n_points, p_faces, n_faces);
 
+    free(p_faces);
     free(p_points);
     return 0;
 }
 
-// Helper function for using CUDA to add vectors in parallel.
-cudaError_t addWithCuda(int *c, const int *a, const int *b, unsigned int size)
-{
-    int *dev_a = 0;
-    int *dev_b = 0;
-    int *dev_c = 0;
-    cudaError_t cudaStatus;
-
-    // Choose which GPU to run on, change this on a multi-GPU system.
-    cudaStatus = cudaSetDevice(0);
-    if (cudaStatus != cudaSuccess) {
-        fprintf(stderr, "cudaSetDevice failed!  Do you have a CUDA-capable GPU installed?");
-        goto Error;
-    }
-
-    // Allocate GPU buffers for three vectors (two input, one output)    .
-    cudaStatus = cudaMalloc((void**)&dev_c, size * sizeof(int));
-    if (cudaStatus != cudaSuccess) {
-        fprintf(stderr, "cudaMalloc failed!");
-        goto Error;
-    }
-
-    cudaStatus = cudaMalloc((void**)&dev_a, size * sizeof(int));
-    if (cudaStatus != cudaSuccess) {
-        fprintf(stderr, "cudaMalloc failed!");
-        goto Error;
-    }
-
-    cudaStatus = cudaMalloc((void**)&dev_b, size * sizeof(int));
-    if (cudaStatus != cudaSuccess) {
-        fprintf(stderr, "cudaMalloc failed!");
-        goto Error;
-    }
-
-    // Copy input vectors from host memory to GPU buffers.
-    cudaStatus = cudaMemcpy(dev_a, a, size * sizeof(int), cudaMemcpyHostToDevice);
-    if (cudaStatus != cudaSuccess) {
-        fprintf(stderr, "cudaMemcpy failed!");
-        goto Error;
-    }
-
-    cudaStatus = cudaMemcpy(dev_b, b, size * sizeof(int), cudaMemcpyHostToDevice);
-    if (cudaStatus != cudaSuccess) {
-        fprintf(stderr, "cudaMemcpy failed!");
-        goto Error;
-    }
-
-    // Launch a kernel on the GPU with one thread for each element.
-    addKernel<<<1, size>>>(dev_c, dev_a, dev_b);
-
-    // Check for any errors launching the kernel
-    cudaStatus = cudaGetLastError();
-    if (cudaStatus != cudaSuccess) {
-        fprintf(stderr, "addKernel launch failed: %s\n", cudaGetErrorString(cudaStatus));
-        goto Error;
-    }
-    
-    // cudaDeviceSynchronize waits for the kernel to finish, and returns
-    // any errors encountered during the launch.
-    cudaStatus = cudaDeviceSynchronize();
-    if (cudaStatus != cudaSuccess) {
-        fprintf(stderr, "cudaDeviceSynchronize returned error code %d after launching addKernel!\n", cudaStatus);
-        goto Error;
-    }
-
-    // Copy output vector from GPU buffer to host memory.
-    cudaStatus = cudaMemcpy(c, dev_c, size * sizeof(int), cudaMemcpyDeviceToHost);
-    if (cudaStatus != cudaSuccess) {
-        fprintf(stderr, "cudaMemcpy failed!");
-        goto Error;
-    }
-
-Error:
-    cudaFree(dev_c);
-    cudaFree(dev_a);
-    cudaFree(dev_b);
-    
-    return cudaStatus;
-}
