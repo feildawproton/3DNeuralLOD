@@ -1,28 +1,28 @@
 ﻿  Compiling CUDA source file compute_inside.cu...
   
   D:\3DNeuralLOD\computeInside\computeInside>"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.5\bin\nvcc.exe" -gencode=arch=compute_52,code=\"sm_52,compute_52\" --use-local-env -ccbin "C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.28.29910\bin\HostX86\x64" -x cu   -I"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.5\include" -I"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.5\include"  -G   --keep-dir x64\Debug  -maxrregcount=0  --machine 64 --compile -cudart static  -g  -DWIN32 -DWIN64 -D_DEBUG -D_CONSOLE -D_MBCS -Xcompiler "/EHsc /W3 /nologo /Od /Fdx64\Debug\vc142.pdb /FS /Zi /RTC1 /MDd " -o x64\Debug\compute_inside.cu.obj "D:\3DNeuralLOD\computeInside\computeInside\compute_inside.cu" -Xcompiler /openmp 
-D:\3DNeuralLOD\computeInside\computeInside\compute_inside.cu(24): warning #375-D: declaration requires a typedef name
+D:\3DNeuralLOD\computeInside\computeInside\compute_inside.cu(18): warning C4067: unexpected tokens following preprocessor directive - expected a newline
+D:\3DNeuralLOD\computeInside\computeInside\compute_inside.cuh(10): warning #375-D: declaration requires a typedef name
   
-D:\3DNeuralLOD\computeInside\computeInside\compute_inside.cu(31): warning #375-D: declaration requires a typedef name
+D:\3DNeuralLOD\computeInside\computeInside\compute_inside.cuh(17): warning #375-D: declaration requires a typedef name
   
-D:\3DNeuralLOD\computeInside\computeInside\compute_inside.cu(37): warning #375-D: declaration requires a typedef name
+D:\3DNeuralLOD\computeInside\computeInside\compute_inside.cuh(23): warning #375-D: declaration requires a typedef name
   
-D:\3DNeuralLOD\computeInside\computeInside\compute_inside.cu(307): warning #177-D: variable "a" was declared but never referenced
+D:\3DNeuralLOD\computeInside\computeInside\compute_inside.cu(288): warning #177-D: variable "a" was declared but never referenced
   
-D:\3DNeuralLOD\computeInside\computeInside\compute_inside.cu(308): warning #177-D: variable "b" was declared but never referenced
+D:\3DNeuralLOD\computeInside\computeInside\compute_inside.cu(289): warning #177-D: variable "b" was declared but never referenced
   
-D:\3DNeuralLOD\computeInside\computeInside\compute_inside.cu(309): warning #177-D: variable "c" was declared but never referenced
+D:\3DNeuralLOD\computeInside\computeInside\compute_inside.cu(290): warning #177-D: variable "c" was declared but never referenced
   
-D:\3DNeuralLOD\computeInside\computeInside\compute_inside.cu(19): warning #177-D: variable "CPU_THREADS" was declared but never referenced
+D:\3DNeuralLOD\computeInside\computeInside\compute_inside.cu(18): warning C4067: unexpected tokens following preprocessor directive - expected a newline
+D:\3DNeuralLOD\computeInside\computeInside\compute_inside.cuh(10): warning #375-D: declaration requires a typedef name
   
-D:\3DNeuralLOD\computeInside\computeInside\compute_inside.cu(24): warning #375-D: declaration requires a typedef name
+D:\3DNeuralLOD\computeInside\computeInside\compute_inside.cuh(17): warning #375-D: declaration requires a typedef name
   
-D:\3DNeuralLOD\computeInside\computeInside\compute_inside.cu(31): warning #375-D: declaration requires a typedef name
-  
-D:\3DNeuralLOD\computeInside\computeInside\compute_inside.cu(37): warning #375-D: declaration requires a typedef name
+D:\3DNeuralLOD\computeInside\computeInside\compute_inside.cuh(23): warning #375-D: declaration requires a typedef name
   
   compute_inside.cu
-D:\3DNeuralLOD\computeInside\computeInside\compute_inside.cu(225): warning C4244: 'initializing': conversion from 'float' to 'unsigned int', possible loss of data
-D:\3DNeuralLOD\computeInside\computeInside\compute_inside.cu(236): warning C4018: '<': signed/unsigned mismatch
-D:\3DNeuralLOD\computeInside\computeInside\compute_inside.cu(260): warning C4244: 'initializing': conversion from 'clock_t' to 'float', possible loss of data
+D:\3DNeuralLOD\computeInside\computeInside\compute_inside.cu(206): warning C4244: 'initializing': conversion from 'float' to 'unsigned int', possible loss of data
+D:\3DNeuralLOD\computeInside\computeInside\compute_inside.cu(217): warning C4018: '<': signed/unsigned mismatch
+D:\3DNeuralLOD\computeInside\computeInside\compute_inside.cu(241): warning C4244: 'initializing': conversion from 'clock_t' to 'float', possible loss of data
   computeInside.vcxproj -> D:\3DNeuralLOD\computeInside\x64\Debug\computeInside.exe

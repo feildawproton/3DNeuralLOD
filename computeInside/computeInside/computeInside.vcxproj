@@ -80,6 +80,12 @@
   <ItemGroup>
     <CudaCompile Include="compute_inside.cu" />
   </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="compute_inside.cuh" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="main.c" />
+  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
     <Import Project="$(VCTargetsPath)\BuildCustomizations\CUDA 11.5.targets" />
