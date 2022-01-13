@@ -81,10 +81,10 @@
     <CudaCompile Include="compute_inside.cu" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="compute_inside.cuh" />
+    <ClInclude Include="compute_inside.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="main.c" />
+    <ClCompile Include="main.cu" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

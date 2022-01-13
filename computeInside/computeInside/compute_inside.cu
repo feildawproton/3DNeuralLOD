@@ -11,11 +11,11 @@
 #include <stdio.h>
 
 #include <omp.h>    //for parallel
-#include <stdlib.h> //for rand
+#include <stdlib.h> //for rand and malloc
 #include <math.h>   //for ceil()
 #include <time.h>   //for perf testing
 
-#include "compute_inside.cuh""
+#include "compute_inside.h"
 
 //computes the volume of a tetrahedron
 __device__
@@ -246,6 +246,7 @@ int* create_inside_z_results(const vec3* p_points, const unsigned n_points, cons
     return p_results;
 }
 
+/*
 vec3* create_rand_points(unsigned num_points)
 {
     vec3* p_points;
@@ -290,28 +291,28 @@ int main()
     int c[arraySize] = { 0 };
 
     //test_parallel();
-    unsigned n_points = 100000;
-    unsigned n_faces = 100000;
+    unsigned n_points = 10000;
+    unsigned n_faces = 10000;
 
     vec3* p_points = create_rand_points(n_points);
     triangle* p_faces = create_rand_faces(n_faces);
     
-    /*
-    for (unsigned i = 0; i < 100; i++)
-    {
-        printf("%f, %f, %f\n", p_faces[i].a.x, p_faces[i].a.y, p_faces[i].a.z);
-        printf("%f, %f, %f\n", p_faces[i].b.x, p_faces[i].b.y, p_faces[i].b.z);
-        printf("%f, %f, %f\n", p_faces[i].c.x, p_faces[i].c.y, p_faces[i].c.z);
-    }
-    */
+
+    //for (unsigned i = 0; i < 100; i++)
+    //{
+    //    printf("%f, %f, %f\n", p_faces[i].a.x, p_faces[i].a.y, p_faces[i].a.z);
+    //    printf("%f, %f, %f\n", p_faces[i].b.x, p_faces[i].b.y, p_faces[i].b.z);
+    //    printf("%f, %f, %f\n", p_faces[i].c.x, p_faces[i].c.y, p_faces[i].c.z);
+    //}
+
     int* p_results = create_inside_z_results(p_points, n_points, p_faces, n_faces);
 
-    /*
-    for (unsigned i = 0; i < n_points; i++)
-    {
-        printf("%i\n", p_results[i]);
-    }
-    */
+    
+    //for (unsigned i = 0; i < n_points; i++)
+    //{
+    //    printf("%i\n", p_results[i]);
+    //}
+    
 
     free(p_results);
     free(p_faces);
@@ -320,4 +321,5 @@ int main()
 
     return 0;
 }
+*/
 
