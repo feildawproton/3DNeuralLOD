@@ -81,7 +81,7 @@
     <CudaCompile Include="compute_inside.cu" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="compute_inside.h" />
+    <ClInclude Include="compute_inside.cuh" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cu" />

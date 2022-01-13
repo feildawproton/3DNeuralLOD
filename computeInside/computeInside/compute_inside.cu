@@ -15,7 +15,7 @@
 #include <math.h>   //for ceil()
 #include <time.h>   //for perf testing
 
-#include "compute_inside.h"
+#include "compute_inside.cuh"
 
 //computes the volume of a tetrahedron
 __device__

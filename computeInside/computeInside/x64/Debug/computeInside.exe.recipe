@@ -2,7 +2,7 @@
 <Project>
   <ProjectOutputs>
     <ProjectOutput>
-      <FullPath>D:\computeInside\x64\Debug\computeInside.exe</FullPath>
+      <FullPath>D:\3DNeuralLOD\computeInside\x64\Debug\computeInside.exe</FullPath>
     </ProjectOutput>
   </ProjectOutputs>
   <ContentFiles />

@@ -4,7 +4,7 @@
 #include <stdlib.h> //for rand and malloc
 #include <stdio.h>  //for printing
 
-#include "compute_inside.h"
+#include "compute_inside.cuh"
 
 vec3* create_rand_points(unsigned num_points)
 {
