@@ -61,12 +61,12 @@ int main()
     */
     int* p_results = create_inside_z_results(p_points, n_points, p_faces, n_faces);
 
-    /*
+    
     for (unsigned i = 0; i < n_points; i++)
     {
         printf("%i\n", p_results[i]);
     }
-    */
+    
 
     free(p_results);
     free(p_faces);
