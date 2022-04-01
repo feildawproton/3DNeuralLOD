@@ -1,6 +1,8 @@
 # 3DNeuralLOD
 Testing Neural LOD in 3D
 
+This is a 3D version of https://github.com/feildawproton/NeuralLOD including some portions written in C and CUDA.
+
 Requirements
 - Numba CUDA for mesh sampling in parallel
 - Numpy-stl for meshes
